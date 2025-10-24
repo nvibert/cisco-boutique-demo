@@ -170,10 +170,10 @@ kubectl apply -f loadbalancer-ip-pool.yaml
 Install the Cisco Boutique microservices demo using Helm:
 
 ```bash
-helm upgrade --install onlineboutique . \
+helm upgrade --install onlineboutique oci://us-docker.pkg.dev/online-boutique-ci/charts/onlineboutique \
   --set images.repository=us-docker.pkg.dev/gcp-cpagcpdemosdwan-nprd-95534/microservices-demo \
   --set images.tag=102325-1 \
-  -n ciscoboutique \
+  --namespace ciscoboutique \
   --create-namespace
 ```
 
@@ -183,6 +183,7 @@ Enable Hubble UI for network observability and monitoring:
 
 ```bash
 cilium hubble enable --ui
+cilium status --wait
 cilium hubble ui &
 ```
 
@@ -218,6 +219,12 @@ kubectl get svc -n ciscoboutique
 
 Using your IDE and a MCP Server for Kubernetes, ask Co-Pilot (or the agentic AI of your choice) for information about your cluster, the application running in it and, using Hubble logs, to extrapolate relevant network policies.
 
+**Important**: For the MCP server to access Hubble observability data, you need to forward the Hubble relay port to your local machine:
+
+```bash
+cilium hubble port-forward &
+```
+
 ## Troubleshooting
 
 ### Common Issues
@@ -232,12 +239,6 @@ Using your IDE and a MCP Server for Kubernetes, ask Co-Pilot (or the agentic AI 
 # Check Cilium status
 cilium status
 
-# View Cilium logs
-kubectl logs -n kube-system -l k8s-app=cilium
-
-# Check Gateway API resources
-kubectl get gateways -A
-
 ```
 
 ## Cleanup
@@ -245,7 +246,7 @@ kubectl get gateways -A
 To tear down the environment:
 
 ```bash
-kind delete cluster
+kind delete cluster kind
 ```
 
 ## Key Features
