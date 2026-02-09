@@ -229,7 +229,7 @@ deploy_frr_router() {
     docker run -d --name "$FRR_CONTAINER_NAME" \
         --network kind \
         --privileged \
-        "$FRR_IMAGE" /bin/bash -c "tail -f /dev/null"
+        "$FRR_IMAGE" /bin/bash -c "tail -f /dev/null" >/dev/null
 
     # Get the FRR container IP (assigned by Docker on the kind network)
     local FRR_IP
@@ -266,10 +266,10 @@ route-map DENY-OUT deny 10
 EOF
 
     # Copy config files into the FRR container and restart the daemon
-    docker cp "$SCRIPT_DIR/frr/frr.conf"   "${FRR_CONTAINER_NAME}:/etc/frr/frr.conf"
-    docker cp "$SCRIPT_DIR/frr/daemons"     "${FRR_CONTAINER_NAME}:/etc/frr/daemons"
-    docker cp "$SCRIPT_DIR/frr/vtysh.conf"  "${FRR_CONTAINER_NAME}:/etc/frr/vtysh.conf"
-    docker exec "$FRR_CONTAINER_NAME" /usr/lib/frr/frrinit.sh restart
+    docker cp "$SCRIPT_DIR/frr/frr.conf"   "${FRR_CONTAINER_NAME}:/etc/frr/frr.conf" >/dev/null 2>&1
+    docker cp "$SCRIPT_DIR/frr/daemons"     "${FRR_CONTAINER_NAME}:/etc/frr/daemons" >/dev/null 2>&1
+    docker cp "$SCRIPT_DIR/frr/vtysh.conf"  "${FRR_CONTAINER_NAME}:/etc/frr/vtysh.conf" >/dev/null 2>&1
+    docker exec "$FRR_CONTAINER_NAME" /usr/lib/frr/frrinit.sh restart >/dev/null 2>&1
 
     # Wait for BGP daemon to be ready
     sleep 3
@@ -323,15 +323,10 @@ EOF
 deploy_boutique() {
     log_info "🛒 Deploying Cisco Boutique application..."
 
-    helm upgrade --install onlineboutique \
-        oci://us-docker.pkg.dev/online-boutique-ci/charts/onlineboutique \
-        --set images.repository=us-docker.pkg.dev/gcp-cpagcpdemosdwan-nprd-95534/microservices-demo \
-        --set images.tag=102325-1 \
-        --namespace ciscoboutique \
-        --create-namespace
+    kubectl apply -f "$SCRIPT_DIR/boutique-manifests.yaml"
 
     log_info "⏳ Waiting for boutique pods to be ready (timeout: 10 minutes)..."
-    # Wait for deployments to exist first (Helm creates them asynchronously)
+    # Wait for deployments to exist first (kubectl apply is synchronous but pods take time)
     sleep 10
     if ! kubectl wait --for=condition=Available deployments --all -n ciscoboutique --timeout=600s; then
         log_error "Some boutique deployments did not become available"
@@ -405,11 +400,16 @@ verify_deployment() {
 }
 
 verify_bgp() {
+    local FRR_IP="$1"
     log_info "🔗 Verifying BGP peering..."
     echo
 
     log_info "Cilium BGP peers:"
     cilium bgp peers
+    echo
+
+    log_info "Cilium BGP advertised routes to FRR (${FRR_IP}):"
+    cilium bgp routes advertised ipv4 unicast peer "${FRR_IP}" || log_warning "No advertised routes yet (BGP session may still be converging)"
     echo
 
     log_info "FRR received routes:"
@@ -490,7 +490,7 @@ main() {
 
     # Verify everything
     verify_deployment
-    verify_bgp
+    verify_bgp "$FRR_IP"
     show_summary
 
     log_success "Setup complete!"
