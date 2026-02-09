@@ -1,0 +1,22 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-product-pages
+  namespace: ciscoboutique
+  annotations:
+    description: "Routes product detail pages to frontend service"
+spec:
+  hostnames:
+  - boutique.cilium.rocks
+  - www.boutique.cilium.rocks
+  parentRefs:
+  - name: cisco-boutique-gateway
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /product/
+    backendRefs:
+    - name: frontend
+      port: 80
+      weight: 100

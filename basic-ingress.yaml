@@ -1,0 +1,54 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: basic-ingress
+  namespace: ciscoboutique
+  annotations:
+    ingress.cilium.io/loadbalancer-mode: shared
+spec:
+  ingressClassName: cilium
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: frontend
+            port:
+              number: 80
+        path: /
+        pathType: Prefix
+      - backend:
+          service:
+            name: productcatalogservice
+            port:
+              number: 3550
+        path: /api/products
+        pathType: Prefix
+      - backend:
+          service:
+            name: currencyservice
+            port:
+              number: 7000
+        path: /api/currency
+        pathType: Prefix
+      - backend:
+          service:
+            name: recommendationservice
+            port:
+              number: 8080
+        path: /api/recommendations
+        pathType: Prefix
+      - backend:
+          service:
+            name: cartservice
+            port:
+              number: 7070
+        path: /api/cart
+        pathType: Prefix
+      - backend:
+          service:
+            name: checkoutservice
+            port:
+              number: 5050
+        path: /api/checkout
+        pathType: Prefix

@@ -1,0 +1,248 @@
+# Gateway API Configuration for Cisco Boutique Demo
+# This example showcases Gateway API capabilities as an Ingress replacement
+# Note: GatewayClass is automatically created by Cilium when Gateway API is enabled
+# 
+# Prerequisites:
+# 1. Generate wildcard certificate: mkcert '*.cilium.rocks'
+# 2. Create TLS secret: kubectl create secret tls demo-cert --key=_wildcard.cilium.rocks-key.pem --cert=_wildcard.cilium.rocks.pem -n ciscoboutique
+---
+# Gateway - Represents the infrastructure (load balancer) and configuration
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: cisco-boutique-gateway
+  namespace: ciscoboutique
+spec:
+  gatewayClassName: cilium
+  listeners:
+  - name: http
+    port: 80
+    protocol: HTTP
+  - name: https
+    port: 443
+    protocol: HTTPS
+    tls:
+      mode: Terminate
+      certificateRefs:
+      - kind: Secret
+        name: demo-cert
+        namespace: ciscoboutique
+---
+# HTTPRoute - Frontend application (main entry point)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-frontend
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "boutique.cilium.rocks"
+  - "www.boutique.cilium.rocks"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /
+    backendRefs:
+    - name: frontend
+      port: 80
+      weight: 100
+---
+# HTTPRoute - API routes for microservices
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-api
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "api.boutique.cilium.rocks"
+  rules:
+  # Product catalog service
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/products
+    backendRefs:
+    - name: productcatalogservice
+      port: 3550
+  # Currency service
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/currency
+    backendRefs:
+    - name: currencyservice
+      port: 7000
+  # Recommendation service
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/recommendations
+    backendRefs:
+    - name: recommendationservice
+      port: 8080
+  # Cart service
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/cart
+    backendRefs:
+    - name: cartservice
+      port: 7070
+---
+# HTTPRoute - Advanced routing with traffic splitting (A/B testing)
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-checkout-canary
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "boutique.cilium.rocks"
+  - "www.boutique.cilium.rocks"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/checkout
+    - headers:
+      - name: "X-User-Type"
+        value: "beta"
+    backendRefs:
+    - name: checkoutservice
+      port: 5050
+      weight: 10  # 10% to new version
+    - name: checkoutservice
+      port: 5050
+      weight: 90  # 90% to stable version
+  # Default checkout route for regular users
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /api/checkout
+    backendRefs:
+    - name: checkoutservice
+      port: 5050
+---
+# HTTPRoute - Admin interface with request transformation
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-admin
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "admin.boutique.cilium.rocks"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /admin
+    filters:
+    - type: RequestHeaderModifier
+      requestHeaderModifier:
+        add:
+        - name: "X-Admin-Access"
+          value: "granted"
+        - name: "X-Request-ID"
+          value: "admin-${request.id}"
+    backendRefs:
+    - name: frontend
+      port: 80
+---
+# HTTPRoute - Health check endpoints
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-health
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "health.boutique.cilium.rocks"
+  rules:
+  - matches:
+    - path:
+        type: Exact
+        value: /health/frontend
+    backendRefs:
+    - name: frontend
+      port: 80
+  - matches:
+    - path:
+        type: Exact
+        value: /health/cart
+    backendRefs:
+    - name: cartservice
+      port: 7070
+  - matches:
+    - path:
+        type: Exact
+        value: /health/checkout
+    backendRefs:
+    - name: checkoutservice
+      port: 5050
+---
+# HTTPRoute - Legal Compliance Redirect (cheeky Cisco Legal example!)
+# Cisco Legal told us off - redirect HTTP traffic to official Cisco store
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-legal-redirect
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  hostnames:
+  - "boutique.cilium.rocks"
+  - "www.boutique.cilium.rocks"
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /redirect-to-cisco-store
+    filters:
+    - type: RequestRedirect
+      requestRedirect:
+        hostname: merchandise-eu.cisco.com
+        scheme: "https"
+        path:
+          type: ReplaceFullPath
+          replaceFullPath: "/"
+        statusCode: 301
+---
+# HTTPRoute - IP-based redirect for browser testing
+# Allows direct IP access for redirect testing in browsers
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: boutique-ip-redirect
+  namespace: ciscoboutique
+spec:
+  parentRefs:
+  - name: cisco-boutique-gateway
+  # No hostnames specified = matches any hostname (including IP)
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /redirect-to-cisco-store
+    filters:
+    - type: RequestRedirect
+      requestRedirect:
+        hostname: merchandise-eu.cisco.com
+        scheme: "https"
+        path:
+          type: ReplaceFullPath
+          replaceFullPath: "/"
+        statusCode: 301

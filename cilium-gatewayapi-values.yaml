@@ -1,4 +1,15 @@
 kubeProxyReplacement: true
+# Disable image digest pinning — required for Kind clusters where images are
+# pre-loaded via 'kind load docker-image'. With digests enabled, containerd
+# can't match the loaded images to the digest-pinned references.
+image:
+  useDigest: false
+envoy:
+  image:
+    useDigest: false
+operator:
+  image:
+    useDigest: false
 l2announcements:
   enabled: true
 devices:
@@ -7,9 +18,19 @@ ipam:
   mode: kubernetes
 gatewayAPI:
   enabled: true
+bgpControlPlane:
+  enabled: true
 hubble:
   enabled: true
   relay:
     enabled: true
+    image:
+      useDigest: false
   ui:
     enabled: true
+    frontend:
+      image:
+        useDigest: false
+    backend:
+      image:
+        useDigest: false
