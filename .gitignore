@@ -18,6 +18,12 @@ Thumbs.db
 *.tmp
 *.bak
 
+# mkcert generated certificates (don't commit personal certificates)
+*.pem
+*-key.pem
+*.crt
+*.key
+
 # Helm temporary files
 *.tgz
 charts/

@@ -57,7 +57,52 @@ Here is a view at the overall architecture of this application:
 
 While this image was statically created, in the next task, you will see how we can use Isovalent Hubble to automatically create a service map!
 
-## Step-by-Step Setup
+## 🚀 Quick Start
+
+For the fastest setup experience, use the automated script:
+
+```bash
+# Clone this repository
+git clone <repository-url>
+cd cisco-boutique-demo
+
+# Run the complete setup
+./setup-demo.sh
+
+# (Optional) Deploy Gateway API example
+./gateway-api-demo.sh deploy
+```
+
+## 🌐 Gateway API Example
+
+This demo includes a comprehensive **Gateway API example** that showcases advanced traffic management capabilities as a modern replacement for traditional Ingress controllers.
+
+### Gateway API Features Demonstrated:
+- **Multi-domain routing** (boutique.cisco.local, api.boutique.cisco.local, admin.boutique.cisco.local)
+- **Path-based routing** for microservices APIs
+- **Traffic splitting** for canary deployments and A/B testing
+- **Header-based routing** with request transformation
+- **TLS termination** with HTTPS support
+- **Health check endpoints** for monitoring
+
+### Quick Gateway API Demo:
+```bash
+# Deploy Gateway API resources
+./gateway-api-demo.sh deploy
+
+# Configure local DNS
+./gateway-api-demo.sh dns
+
+# Test the routes
+./gateway-api-demo.sh test
+
+# View canary deployment demo
+./gateway-api-demo.sh canary
+```
+
+📖 **For detailed Gateway API documentation, see [GATEWAY-API-EXAMPLE.md](GATEWAY-API-EXAMPLE.md)**
+
+## Step-by-Step Manual Setup
 
 ### 1. Create Kind Cluster Configuration
 
